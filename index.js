@@ -22,12 +22,26 @@ else
     console.log('A new one will be created after exiting the program');
 }
 
-var rl = readline.createInterface(process.stdin, process.stdout);
+var args = process.argv.splice(2);
+var interactive = args.length === 0;
+
+if (interactive)
+{
+    var rl = readline.createInterface(process.stdin, process.stdout);
+}
 
 function prompt()
-{    
-    console.log();
-    rl.prompt();
+{
+    if (interactive)
+    {
+        console.log();
+        rl.prompt();
+    }
+    else
+    {
+        app.save(SETTING_PATH);
+        process.exit(0);
+    }
 }
 
 function printStatus(subs)
@@ -347,11 +361,17 @@ function onLine(line)
     prompt();
 }
 
-rl.on('line', onLine)
-  .on('close', function() {
-    console.log('Have a great day!');
-    process.exit(0);
-});
-rl.setPrompt('> ');
-rl.prompt();
-
+if (interactive)
+{
+    rl.on('line', onLine)
+    .on('close', function() {
+        console.log('Have a great day!');
+        process.exit(0);
+    });
+    rl.setPrompt('> ');
+    rl.prompt();
+}
+else
+{
+    onLine(args.join(' '));
+}
