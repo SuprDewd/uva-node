@@ -178,7 +178,32 @@ function onLine(line)
     case 'send':
         var curAdap = getCurrentAdapter();
         if (!curAdap) break;
-        if (!checkToks(2, 'send <prob#> <fileName>')) break;
+        var prob_id, file;
+        if (toks.length === 3)
+        {
+            prob_id = toks[1];
+            file = toks[2];
+        }
+        else if (toks.length === 2)
+        {
+            file = toks[1];
+            var m = file.match(/[0-9]+/)
+            if (m)
+            {
+                prob_id = m.toString();
+                console.log('No problem id specified, guessing ' + prob_id);
+            }
+            else
+            {
+                console.log('No problem id specified');
+                break;
+            }
+        }
+        else
+        {
+            console.log('Syntax: send <prob#> <fileName>');
+            break;
+        }
 
         try
         {
@@ -192,7 +217,7 @@ function onLine(line)
                 }
 
                 console.log('Sending code...');
-                curAdap.send(toks[1], toks[2], function(e){
+                curAdap.send(prob_id, file, function(e){
                     if (e)
                         console.log('send failed: '+e.message);
                     else
