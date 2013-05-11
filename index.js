@@ -25,23 +25,40 @@ else
 var args = process.argv.splice(2);
 var interactive = args.length === 0;
 
-if (interactive)
+if (! interactive)
 {
-    var rl = readline.createInterface(process.stdin, process.stdout);
+    executeLine(args.join(' '), function(){
+        saveSetting();
+        process.exit(0);
+    });
+    return;
 }
 
-function prompt()
-{
-    if (interactive)
-    {
+var rl = readline.createInterface(process.stdin, process.stdout);
+
+rl.on('line', function(line){
+    executeLine(line, function (quitting){    
+        if (quitting)
+        {
+            saveSetting();
+            rl.close();
+            return;
+        }
+
         console.log();
         rl.prompt();
-    }
-    else
-    {
-        app.save(SETTING_PATH);
-        process.exit(0);
-    }
+    });
+})
+.on('close', function() {
+    console.log('Have a great day!');
+    process.exit(0);
+});
+rl.setPrompt('> ');
+rl.prompt();
+
+function saveSetting()
+{
+    app.save(SETTING_PATH);
 }
 
 function printStatus(subs)
@@ -84,7 +101,7 @@ function printError(e)
     console.log('Error: ' + (e.message || e));
 }
 
-function onLine(line) 
+function executeLine(line, doneFn) 
 {
     var toks = line.trim().split(/\s+/g);
     var action = toks[0].toLowerCase();
@@ -157,8 +174,7 @@ function onLine(line)
     {
     case 'exit':
     case 'quit':
-        app.save(SETTING_PATH);
-        rl.close();
+        doneFn(true);
         break;
 
     case 'set-editor':
@@ -174,7 +190,7 @@ function onLine(line)
                 console.log('Cannot edit: '+e.message);
             else
                 console.log('Edit done');
-            prompt();
+            doneFn();
         });
         return;
 
@@ -192,33 +208,55 @@ function onLine(line)
     case 'send':
         var curAdap = getCurrentAdapter();
         if (!curAdap) break;
-        var prob_id, file;
-        if (toks.length === 3)
+
+        var probNum, filePath;
+
+        if (toks.length == 2)
         {
-            prob_id = toks[1];
-            file = toks[2];
-        }
-        else if (toks.length === 2)
-        {
-            file = toks[1];
-            var m = file.match(/[0-9]+/)
-            if (m)
+            var input = toks[1]; // can be prob# or filePath
+            if (fs.existsSync(input))
             {
-                prob_id = m.toString();
-                console.log('No problem id specified, guessing ' + prob_id);
+                probNum = curAdap.inferProbNum(input);
+                filePath = input;
+                if (!probNum)
+                {
+                    console.log('file "%s" exists, but cannot infer problem number.', input);
+                    break;
+                }
             }
             else
             {
-                console.log('No problem id specified');
-                break;
+                var files = curAdap.findFileNames(input);
+                if (files.length == 0)
+                {
+                    console.log('Cannot find source files in current directory for problem: %s', input);
+                    break;
+                }
+
+                if (files.length > 1)
+                {
+                    console.log('Multiple source files found: "%s", "%s", ...', files[0], files[1]);
+                    break;
+                }
+
+                filePath = files[0];
+                probNum = input;
             }
+
+            console.log('Inferred Problem #: %s', probNum);
+            console.log('       Source file: %s', filePath);
         }
-        else
+        else if (toks.length == 3)
         {
-            console.log('Syntax: send <prob#> <fileName>');
+            probNum = toks[1];
+            filePath = toks[2];
+        }
+        else 
+        {
+            checkToks(2, 'send <prob#> <fileName/Path>');
             break;
         }
-
+        
         try
         {
             console.log('Logging in...');
@@ -226,17 +264,17 @@ function onLine(line)
                 if (e)
                 {
                     console.log('Login error: '+e.message);
-                    prompt();
+                    doneFn();
                     return;
                 }
 
                 console.log('Sending code...');
-                curAdap.send(prob_id, file, function(e){
+                curAdap.send(probNum, filePath, function(e){
                     if (e)
                         console.log('send failed: '+e.message);
                     else
                         console.log('Send ok');
-                    prompt();
+                    doneFn();
                 });    
             });
 
@@ -348,7 +386,7 @@ function onLine(line)
                 console.log('Status error: '+e.message);
             else
                 printStatus(subs);
-            prompt();
+            doneFn();
         });
 
         return;
@@ -358,20 +396,6 @@ function onLine(line)
         break;
     }
 
-    prompt();
+    doneFn();
 }
 
-if (interactive)
-{
-    rl.on('line', onLine)
-    .on('close', function() {
-        console.log('Have a great day!');
-        process.exit(0);
-    });
-    rl.setPrompt('> ');
-    rl.prompt();
-}
-else
-{
-    onLine(args.join(' '));
-}

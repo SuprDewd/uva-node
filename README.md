@@ -8,7 +8,9 @@ Features
 - Remembers your account info and encrypts your passwords.
 - Password-less submissions.
 - Checks most recent submission status.
-- Template Support! *new*
+- Template Support! 
+- File name completion and problem number detection *new*
+- Non-interactive mode *new*
 - Cross-platform: Linux, Mac OS X, Windows or whatever node.js runs on
 
 One-time setup:
@@ -31,11 +33,13 @@ C++        path/to/template.cpp
 
 Sample usage:
 <pre>
-> edit problem-123.cpp
+> edit 123.cpp
 .... spawn the template and launch vim ....
 Edit done
 
-> send 123 problem-123.cpp
+> send 123
+Inferred Problem #: 123
+       Source file: 123.cpp
 Logging in...
 Sending code...
 Sent OK
@@ -46,6 +50,17 @@ Sub Id    | Prob # |      Verdict     |  Lang  | Runtime |  Rank |      Sub Time
  11638387      123           accepted      C++     0.008     519   2013-04-20 13:35:04
  11629565      125           accepted      C++     0.016     900   2013-04-19 00:16:01
 ...
+</pre>
+
+Non-interactive usage:
+<pre>
+lucastan$ node uva-node status
+Getting status...
+Sub Id    | Prob # |      Verdict     |  Lang  | Runtime |  Rank |      Sub Time
+ 11638387      123           accepted      C++     0.008     519   2013-04-20 13:35:04
+ 11629565      125           accepted      C++     0.016     900   2013-04-19 00:16:01
+
+lucastan$
 </pre>
 
 Requirements
@@ -201,13 +216,24 @@ Shows all user accounts
 
 send
 ----
-Syntax: send {problem #} {fileName}
+Syntax: send {problem #} {fileName/Path} OR send {fileName/Path} OR send {problem #}
 
 Sends a code file using the current account. 
-{fileName} is relative to the current directory, which
+{fileName/Path} is relative to the current directory, which
 is where you ran the `node ...` command to start uva-node
 
 The program will auto-detect the language using the file name extension.
+
+If only {problem #} is specified, the program will detect the source file in the current directory
+whose name contains the {problem #}. For example, if there is an existing file 00123.cpp and you specify
+the problem # as 123, the program will assume you want to send 00123.cpp (leading zeroes are ignored).
+If multiple files are found to contain the problem # in their names, the program will abort sending.
+For example, if there are files 123-a.cpp and 123.cpp, the program will not be able to know which one
+you want to send.
+In this case, you'd have to specify both the {problem #} and {fileName} args.
+
+If only {fileName/Path} is specified, the program will infer the problem # from the file name.
+The problem # is assumed to be the first integer found in the file name, ignoring leading zeroes.
 
 status / stat
 -------------
